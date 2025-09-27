@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TaskCard } from "@/components/dashboard/TaskCard";
 import { Plus, MoreHorizontal } from "lucide-react";
+import { useTasks } from "@/hooks/useTasks";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 const columns = [
   { id: "todo", title: "К выполнению", color: "zinc" },
@@ -14,15 +16,79 @@ const columns = [
   { id: "done", title: "Выполнено", color: "emerald" },
 ];
 
-export function KanbanBoard() {
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+interface KanbanBoardProps {
+  projectId?: string;
+}
 
+export function KanbanBoard({ projectId }: KanbanBoardProps) {
+  const { tasks, isLoading, updateTask } = useTasks(projectId);
+  const { send, on, off } = useWebSocket(projectId);
+  const [draggedTask, setDraggedTask] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+
+  // WebSocket listeners for real-time updates
   useEffect(() => {
-    // TODO: Fetch tasks from API
-    // For now, show empty state
-    setIsLoading(false);
-  }, []);
+    const handleTaskUpdated = (data: any) => {
+      console.log("Task updated via WebSocket:", data);
+      // Tasks will be refetched by useTasks hook
+    };
+
+    const handleTaskCreated = (data: any) => {
+      console.log("Task created via WebSocket:", data);
+    };
+
+    const handleTaskDeleted = (data: any) => {
+      console.log("Task deleted via WebSocket:", data);
+    };
+
+    const unsubscribeUpdated = on("task.updated", handleTaskUpdated);
+    const unsubscribeCreated = on("task.created", handleTaskCreated);
+    const unsubscribeDeleted = on("task.deleted", handleTaskDeleted);
+
+    return () => {
+      unsubscribeUpdated();
+      unsubscribeCreated();
+      unsubscribeDeleted();
+    };
+  }, [on]);
+
+  const handleDragStart = (e: React.DragEvent, taskId: string) => {
+    setDraggedTask(taskId);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent, columnId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverColumn(columnId);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverColumn(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, columnId: string) => {
+    e.preventDefault();
+    
+    if (!draggedTask) return;
+
+    try {
+      // Update task status optimistically
+      await updateTask(draggedTask, { status: columnId as any });
+      
+      // Send WebSocket update
+      send("task.moved", {
+        taskId: draggedTask,
+        newStatus: columnId,
+        projectId,
+      });
+    } catch (error) {
+      console.error("Failed to move task:", error);
+    } finally {
+      setDraggedTask(null);
+      setDragOverColumn(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -35,7 +101,15 @@ export function KanbanBoard() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {columns.map((column) => (
-        <Card key={column.id} className="bg-zinc-900 border-zinc-800">
+        <Card 
+          key={column.id} 
+          className={`bg-zinc-900 border-zinc-800 transition-colors ${
+            dragOverColumn === column.id ? 'border-emerald-500/50 bg-emerald-500/5' : ''
+          }`}
+          onDragOver={(e) => handleDragOver(e, column.id)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDrop(e, column.id)}
+        >
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className={`text-sm font-medium ${
@@ -73,7 +147,16 @@ export function KanbanBoard() {
               tasks
                 .filter(task => task.status === column.id)
                 .map((task) => (
-                  <TaskCard key={task.id} task={task} />
+                  <div
+                    key={task.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, task.id)}
+                    className={`cursor-move ${
+                      draggedTask === task.id ? 'opacity-50' : ''
+                    }`}
+                  >
+                    <TaskCard task={task} />
+                  </div>
                 ))
             )}
           </CardContent>

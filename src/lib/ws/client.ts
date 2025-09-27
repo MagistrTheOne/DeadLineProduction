@@ -13,14 +13,26 @@ export class WebSocketClient {
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
   private listeners: Map<string, Set<(data: any) => void>> = new Map();
+  private userId: string | null = null;
+  private projectId: string | null = null;
 
-  constructor() {
+  constructor(userId?: string, projectId?: string) {
+    this.userId = userId || null;
+    this.projectId = projectId || null;
     this.connect();
   }
 
   private connect() {
     try {
-      this.ws = new WebSocket(env.WEBSOCKET_URL);
+      const url = new URL(env.WEBSOCKET_URL);
+      if (this.userId) {
+        url.searchParams.set("userId", this.userId);
+      }
+      if (this.projectId) {
+        url.searchParams.set("projectId", this.projectId);
+      }
+      
+      this.ws = new WebSocket(url.toString());
 
       this.ws.onopen = () => {
         console.log("WebSocket connected");
@@ -127,10 +139,14 @@ export class WebSocketClient {
 // Singleton instance
 let wsClient: WebSocketClient | null = null;
 
-export function getWebSocketClient(): WebSocketClient {
-  if (!wsClient) {
-    wsClient = new WebSocketClient();
+export function getWebSocketClient(userId?: string, projectId?: string): WebSocketClient {
+  if (!wsClient || (userId && wsClient.userId !== userId)) {
+    wsClient = new WebSocketClient(userId, projectId);
   }
   return wsClient;
+}
+
+export function createWebSocketClient(userId: string, projectId?: string): WebSocketClient {
+  return new WebSocketClient(userId, projectId);
 }
 

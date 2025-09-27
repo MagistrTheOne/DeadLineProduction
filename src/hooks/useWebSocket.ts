@@ -1,32 +1,50 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { getWebSocketClient } from "@/lib/ws/client";
+import { useEffect, useRef, useState } from "react";
+import { createWebSocketClient } from "@/lib/ws/client";
+import { useAuth } from "./useAuth";
 
-export function useWebSocket() {
-  const wsClient = useRef(getWebSocketClient());
+export function useWebSocket(projectId?: string) {
+  const { user } = useAuth();
+  const [wsClient, setWsClient] = useState<any>(null);
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
+    if (!user?.id) return;
+
+    const client = createWebSocketClient(user.id, projectId);
+    setWsClient(client);
+
+    const handleOpen = () => setIsConnected(true);
+    const handleClose = () => setIsConnected(false);
+
+    client.on("connected", handleOpen);
+    client.on("disconnected", handleClose);
+
     return () => {
-      // Cleanup on unmount
-      wsClient.current.disconnect();
+      client.off("connected", handleOpen);
+      client.off("disconnected", handleClose);
+      client.disconnect();
     };
-  }, []);
+  }, [user?.id, projectId]);
 
   const send = (type: string, payload: any) => {
-    wsClient.current.send(type, payload);
+    if (wsClient) {
+      wsClient.send(type, payload);
+    }
   };
 
   const on = (type: string, listener: (data: any) => void) => {
-    return wsClient.current.on(type, listener);
+    if (wsClient) {
+      return wsClient.on(type, listener);
+    }
+    return () => {};
   };
 
   const off = (type: string, listener: (data: any) => void) => {
-    wsClient.current.off(type, listener);
-  };
-
-  const isConnected = () => {
-    return wsClient.current.isConnected();
+    if (wsClient) {
+      wsClient.off(type, listener);
+    }
   };
 
   return {

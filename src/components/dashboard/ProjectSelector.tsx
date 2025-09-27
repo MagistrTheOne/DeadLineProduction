@@ -18,7 +18,11 @@ const mockProjects = [
   { id: "3", name: "API Backend", description: "Node.js backend services" },
 ];
 
-export function ProjectSelector() {
+interface ProjectSelectorProps {
+  onProjectChange?: (projectId: string) => void;
+}
+
+export function ProjectSelector({ onProjectChange }: ProjectSelectorProps) {
   const [selectedProject, setSelectedProject] = useState(mockProjects[0]);
 
   return (
@@ -39,7 +43,10 @@ export function ProjectSelector() {
         {mockProjects.map((project) => (
           <DropdownMenuItem
             key={project.id}
-            onClick={() => setSelectedProject(project)}
+            onClick={() => {
+              setSelectedProject(project);
+              onProjectChange?.(project.id);
+            }}
             className={`text-zinc-300 hover:text-white hover:bg-zinc-800 ${
               selectedProject.id === project.id ? "bg-emerald-500/20 text-emerald-400" : ""
             }`}

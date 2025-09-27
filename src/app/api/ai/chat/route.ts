@@ -66,7 +66,8 @@ export async function POST(request: NextRequest) {
     const hasGigaChatCredentials = !!(
       env.GIGACHAT_CLIENT_ID &&
       env.GIGACHAT_CLIENT_SECRET &&
-      env.GIGACHAT_BASE_URL
+      env.GIGACHAT_BASE_URL &&
+      env.GIGACHAT_CLIENT_SECRET !== "your_client_secret_here"
     );
 
     if (!hasGigaChatCredentials) {

@@ -12,13 +12,31 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Bell, User, Settings, LogOut } from "lucide-react";
+import { Search, Bell, User, Settings, LogOut, Wifi, WifiOff } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 export function TopBar() {
   const { user, logout } = useAuth();
+  const { isConnected: wsConnected } = useWebSocket();
   const [searchQuery, setSearchQuery] = useState("");
   const [notifications, setNotifications] = useState(3);
+  const [gigaChatStatus, setGigaChatStatus] = useState<boolean | null>(null);
+
+  // Check GigaChat status on mount
+  useEffect(() => {
+    const checkGigaChatStatus = async () => {
+      try {
+        const response = await fetch("/api/ai/test");
+        const data = await response.json();
+        setGigaChatStatus(data.connected);
+      } catch (error) {
+        setGigaChatStatus(false);
+      }
+    };
+    
+    checkGigaChatStatus();
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.ctrlKey && e.key === "x") {
@@ -47,6 +65,22 @@ export function TopBar() {
 
         {/* Right side */}
         <div className="flex items-center space-x-4">
+          {/* Connection Status */}
+          <div className="flex items-center space-x-2">
+            <div className={`flex items-center space-x-1 ${
+              wsConnected ? 'text-emerald-400' : 'text-red-400'
+            }`}>
+              {wsConnected ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
+              <span className="text-xs">WS</span>
+            </div>
+            <div className={`flex items-center space-x-1 ${
+              gigaChatStatus ? 'text-emerald-400' : gigaChatStatus === false ? 'text-red-400' : 'text-zinc-400'
+            }`}>
+              <div className="w-2 h-2 rounded-full bg-current"></div>
+              <span className="text-xs">AI</span>
+            </div>
+          </div>
+
           {/* Notifications */}
           <Button
             variant="ghost"
@@ -66,7 +100,10 @@ export function TopBar() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.avatar || ""} alt={user?.name || ""} />
+                  <AvatarImage
+                    src={user && 'avatarUrl' in user ? (user as any).avatarUrl || "" : ""}
+                    alt={user?.name || ""}
+                  />
                   <AvatarFallback className="bg-emerald-500 text-white">
                     {user?.name?.charAt(0).toUpperCase() || "U"}
                   </AvatarFallback>

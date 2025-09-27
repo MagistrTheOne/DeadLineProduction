@@ -7,8 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { AI_AGENTS } from "@/lib/ai/agents";
 import { Bot, MessageSquare, Zap } from "lucide-react";
 
-export function AIAgentCard() {
-  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+interface AIAgentCardProps {
+  onAgentSelect?: (agent: { id: string; name: string }) => void;
+}
+
+export function AIAgentCard({ onAgentSelect }: AIAgentCardProps) {
 
   return (
     <>
@@ -16,7 +19,7 @@ export function AIAgentCard() {
         <Card 
           key={agent.id} 
           className="bg-zinc-900 border-zinc-800 hover:border-emerald-500/50 transition-colors cursor-pointer"
-          onClick={() => setSelectedAgent(agent.id)}
+          onClick={() => onAgentSelect?.({ id: agent.id, name: agent.name })}
         >
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -68,7 +71,7 @@ export function AIAgentCard() {
                   className="bg-emerald-500 hover:bg-emerald-600 text-white"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setSelectedAgent(agent.id);
+                    onAgentSelect?.({ id: agent.id, name: agent.name });
                   }}
                 >
                   <MessageSquare className="h-4 w-4 mr-2" />

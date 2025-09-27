@@ -35,6 +35,7 @@ async function getAccessToken(): Promise<string> {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
       },
       body: new URLSearchParams({
         grant_type: "client_credentials",
@@ -81,6 +82,7 @@ export async function sendMessageToGigaChat(
       headers: {
         "Authorization": `Bearer ${accessToken}`,
         "Content-Type": "application/json",
+        "Accept": "text/event-stream",
       },
       body: JSON.stringify(request),
     });
@@ -159,8 +161,30 @@ export function parseGigaChatStream(stream: ReadableStream<Uint8Array>): Readabl
 
 export async function testGigaChatConnection(): Promise<boolean> {
   try {
-    await getAccessToken();
-    return true;
+    const accessToken = await getAccessToken();
+    
+    // Test with a simple completion request
+    const testResponse = await fetch(`${env.GIGACHAT_BASE_URL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "GigaChat",
+        messages: [
+          {
+            role: "user",
+            content: "Привет! Это тестовое сообщение для проверки подключения."
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 50,
+        stream: false,
+      }),
+    });
+
+    return testResponse.ok;
   } catch (error) {
     console.error("GigaChat connection test failed:", error);
     return false;

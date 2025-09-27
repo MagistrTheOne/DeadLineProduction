@@ -5,8 +5,8 @@ const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   
   // GigaChat API
-  GIGACHAT_BASE_URL: z.string().url(),
-  GIGACHAT_CLIENT_ID: z.string().min(1),
+  GIGACHAT_BASE_URL: z.string().url().default("https://gigachat.devices.sberbank.ru/api/v1"),
+  GIGACHAT_CLIENT_ID: z.string().min(1).default("0199824b-4c1e-7ef1-b423-bb3156ddecee"),
   GIGACHAT_CLIENT_SECRET: z.string().min(1),
   GIGACHAT_SCOPE: z.string().default("GIGACHAT_API_PERS"),
   
@@ -14,7 +14,7 @@ const envSchema = z.object({
   SESSION_SECRET: z.string().min(32),
   
   // WebSocket
-  WEBSOCKET_URL: z.string().url(),
+  WEBSOCKET_URL: z.string().url().default("ws://localhost:3001"),
   
   // App Configuration
   NEXT_PUBLIC_APP_NAME: z.string().default("DeadLine"),
