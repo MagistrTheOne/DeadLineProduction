@@ -89,7 +89,7 @@ export function Pricing() {
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                   <div className="bg-emerald-500 text-white px-4 py-2 rounded-full text-sm font-medium flex items-center">
                     <Star className="w-4 h-4 mr-1" />
-                    Популярный
+                    Хит продаж
                   </div>
                 </div>
               )}
