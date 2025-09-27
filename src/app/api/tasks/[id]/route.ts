@@ -17,7 +17,7 @@ const updateTaskSchema = z.object({
 // GET /api/tasks/[id] - Get a specific task
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -25,6 +25,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id: taskId } = await params;
     const task = await db
       .select({
         id: tasks.id,
@@ -43,7 +44,7 @@ export async function GET(
       })
       .from(tasks)
       .leftJoin(users, eq(tasks.assigneeId, users.id))
-      .where(eq(tasks.id, params.id))
+      .where(eq(tasks.id, taskId))
       .limit(1);
 
     if (!task[0]) {
@@ -63,13 +64,15 @@ export async function GET(
 // PUT /api/tasks/[id] - Update a task
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const { id: taskId } = await params;
 
     const body = await request.json();
     const updateData = updateTaskSchema.parse(body);
@@ -81,7 +84,7 @@ export async function PUT(
         ...updateData,
         updatedAt: new Date(),
       })
-      .where(eq(tasks.id, params.id))
+      .where(eq(tasks.id, taskId))
       .returning();
 
     if (!updatedTask[0]) {
@@ -93,7 +96,7 @@ export async function PUT(
     console.error("Update task error:", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Validation error", details: error.errors },
+        { error: "Validation error", details: error.issues },
         { status: 400 }
       );
     }
@@ -107,7 +110,7 @@ export async function PUT(
 // DELETE /api/tasks/[id] - Delete a task
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -115,9 +118,11 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id: taskId } = await params;
+
     const deletedTask = await db
       .delete(tasks)
-      .where(eq(tasks.id, params.id))
+      .where(eq(tasks.id, taskId))
       .returning();
 
     if (!deletedTask[0]) {

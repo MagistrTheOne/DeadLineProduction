@@ -71,47 +71,12 @@ export async function POST(request: NextRequest) {
     );
 
     if (!hasGigaChatCredentials) {
-      // Return a mock response when credentials are not available
-      const mockResponse = `Привет! Я ${agent.name}. К сожалению, GigaChat API не настроен, поэтому я не могу дать полноценный ответ. Пожалуйста, настройте переменные окружения GIGACHAT_CLIENT_ID, GIGACHAT_CLIENT_SECRET и GIGACHAT_BASE_URL для полноценной работы.`;
-
-      // Log the interaction
-      await db.insert(aiInteractions).values({
-        agentType: agentId,
-        prompt: messages[messages.length - 1]?.content || "",
-        response: mockResponse,
-        userId: session.userId,
-      });
-
-      return new NextResponse(
-        new ReadableStream({
-          start(controller) {
-            const encoder = new TextEncoder();
-            const chunks = mockResponse.split(" ");
-            
-            chunks.forEach((chunk, index) => {
-              setTimeout(() => {
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-                  type: "content",
-                  content: chunk + " "
-                })}\n\n`));
-                
-                if (index === chunks.length - 1) {
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-                    type: "done"
-                  })}\n\n`));
-                  controller.close();
-                }
-              }, index * 100);
-            });
-          }
-        }),
-        {
-          headers: {
-            "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-          },
-        }
+      return NextResponse.json(
+        { 
+          error: "GigaChat API not configured",
+          message: "GigaChat credentials are not properly configured. Please set GIGACHAT_CLIENT_ID, GIGACHAT_CLIENT_SECRET, and GIGACHAT_BASE_URL environment variables."
+        },
+        { status: 400 }
       );
     }
 

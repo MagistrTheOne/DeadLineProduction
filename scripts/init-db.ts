@@ -1,3 +1,8 @@
+import dotenv from "dotenv";
+
+// Load environment variables
+dotenv.config();
+
 import { db } from "../src/lib/db";
 import { users, projects, tasks, comments, notifications, aiInteractions, subscriptions } from "../src/lib/db/schema";
 

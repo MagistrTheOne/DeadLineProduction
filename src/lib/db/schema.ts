@@ -175,3 +175,117 @@ export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+// AI Chats table
+export const aiChats = pgTable("ai_chats", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  agent: text("agent").notNull().default("vasily"),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => ({
+  userIdx: index("ai_chats_user_idx").on(t.userId),
+  agentIdx: index("ai_chats_agent_idx").on(t.agent),
+}));
+
+// AI Messages table
+export const aiMessages = pgTable("ai_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  chatId: uuid("chat_id")
+    .references(() => aiChats.id, { onDelete: "cascade" })
+    .notNull(),
+  role: text("role").$type<"user" | "assistant">().notNull(),
+  content: text("content").notNull(),
+  tokens: integer("tokens"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => ({
+  chatIdx: index("ai_messages_chat_idx").on(t.chatId),
+  roleIdx: index("ai_messages_role_idx").on(t.role),
+}));
+
+// Relations for AI chats
+export const aiChatsRelations = relations(aiChats, ({ one, many }) => ({
+  user: one(users, {
+    fields: [aiChats.userId],
+    references: [users.id],
+  }),
+  messages: many(aiMessages),
+}));
+
+export const aiMessagesRelations = relations(aiMessages, ({ one }) => ({
+  chat: one(aiChats, {
+    fields: [aiMessages.chatId],
+    references: [aiChats.id],
+  }),
+}));
+
+// Integration settings table
+export const integrationSettings = pgTable("integration_settings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  provider: text("provider").notNull(), // gigachat, slack, github, neon, websocket
+  enabled: boolean("enabled").notNull().default(false),
+  autosync: boolean("autosync").notNull().default(false),
+  intervalMin: integer("interval_min").default(60),
+  config: text("config"), // JSON string for provider-specific settings
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => ({
+  userIdx: index("integration_settings_user_idx").on(t.userId),
+  providerIdx: index("integration_settings_provider_idx").on(t.provider),
+}));
+
+// Activity log table
+export const activityLog = pgTable("activity_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  type: text("type").notNull(), // integration, task, project, etc.
+  action: text("action").notNull(), // created, updated, deleted, connected, etc.
+  payload: text("payload"), // JSON string with additional data
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => ({
+  userIdx: index("activity_log_user_idx").on(t.userId),
+  typeIdx: index("activity_log_type_idx").on(t.type),
+  createdAtIdx: index("activity_log_created_at_idx").on(t.createdAt),
+}));
+
+// User notes table
+export const userNotes = pgTable("user_notes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => ({
+  userIdx: index("user_notes_user_idx").on(t.userId),
+}));
+
+// Relations for new tables
+export const integrationSettingsRelations = relations(integrationSettings, ({ one }) => ({
+  user: one(users, {
+    fields: [integrationSettings.userId],
+    references: [users.id],
+  }),
+}));
+
+export const activityLogRelations = relations(activityLog, ({ one }) => ({
+  user: one(users, {
+    fields: [activityLog.userId],
+    references: [users.id],
+  }),
+}));
+
+export const userNotesRelations = relations(userNotes, ({ one }) => ({
+  user: one(users, {
+    fields: [userNotes.userId],
+    references: [users.id],
+  }),
+}));

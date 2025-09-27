@@ -1,6 +1,15 @@
 import { env } from "@/lib/env";
 import { AIStreamChunk } from "@/types/ai";
 
+// Generate RqUID for GigaChat requests
+function generateRqUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 interface GigaChatToken {
   access_token: string;
   expires_in: number;
@@ -31,22 +40,34 @@ async function getAccessToken(): Promise<string> {
   }
 
   try {
-    const response = await fetch(`${env.GIGACHAT_BASE_URL}/oauth/token`, {
+    // Prepare Basic auth header
+    let authHeader: string;
+    if (env.GIGACHAT_AUTH_BASIC) {
+      authHeader = `Basic ${env.GIGACHAT_AUTH_BASIC}`;
+    } else {
+      const credentials = Buffer.from(`${env.GIGACHAT_CLIENT_ID}:${env.GIGACHAT_CLIENT_SECRET}`).toString('base64');
+      authHeader = `Basic ${credentials}`;
+    }
+
+    const rqUID = generateRqUID();
+    
+    const response = await fetch(env.GIGACHAT_TOKEN_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         "Accept": "application/json",
+        "RqUID": rqUID,
+        "Authorization": authHeader,
       },
       body: new URLSearchParams({
-        grant_type: "client_credentials",
-        client_id: env.GIGACHAT_CLIENT_ID,
-        client_secret: env.GIGACHAT_CLIENT_SECRET,
         scope: env.GIGACHAT_SCOPE,
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to get token: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error(`GigaChat token request failed: ${response.status} ${response.statusText}`, errorText);
+      throw new Error(`Failed to get token: ${response.status} ${response.statusText}`);
     }
 
     const token: GigaChatToken = await response.json();
@@ -85,6 +106,13 @@ export async function sendMessageToGigaChat(
         "Accept": "text/event-stream",
       },
       body: JSON.stringify(request),
+      // Ignore SSL certificate errors in development
+      ...(process.env.NODE_ENV === 'development' && {
+        // @ts-ignore - Node.js specific option
+        agent: new (require('https').Agent)({
+          rejectUnauthorized: false
+        })
+      })
     });
 
     if (!response.ok) {
@@ -181,7 +209,7 @@ export async function testGigaChatConnection(): Promise<boolean> {
         temperature: 0.7,
         max_tokens: 50,
         stream: false,
-      }),
+      })
     });
 
     return testResponse.ok;
